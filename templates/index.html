@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Music Manager</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#121212; color:#fff; padding:20px; }
+    .search { width:100%; padding:10px; border-radius:8px; border:none; margin-bottom:20px; font-size:16px;}
+    ul { list-style:none; padding:0; }
+    li { 
+        background:#1e1e1e; padding:15px; margin-bottom:10px; border-radius:8px; 
+        display:flex; justify-content:space-between; align-items:center;
+    }
+    .song-info { font-weight:bold; font-size:16px; flex-grow: 1;}
+    .actions button, .actions a {
+        padding: 8px 12px; border-radius: 6px; border: none; 
+        cursor: pointer; text-decoration: none; color: white; font-size: 14px; margin-left: 5px;
+    }
+    .btn-play { background: #1db954; }
+    .btn-dl { background: #535353; }
+    .btn-rename { background: #d63031; }
+    audio { width: 100%; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>🎵 Music Manager</h1>
+  <input type="text" class="search" id="search" placeholder="Search songs...">
+  
+  <ul id="list"></ul>
+  <audio id="player" controls></audio>
+
+<script>
+    let allSongs = [];
+
+    async function loadSongs() {
+        const res = await fetch('/songs');
+        allSongs = await res.json();
+        render(allSongs);
+    }
+
+    function render(songs) {
+        const list = document.getElementById('list');
+        list.innerHTML = '';
+        songs.forEach(song => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="song-info">${song.title}</span>
+                <div class="actions">
+                    <button class="btn-play" onclick="play('${song.url}')">▶</button>
+                    <a class="btn-dl" href="/download/${song.file}">⬇</a>
+                    <button class="btn-rename" onclick="rename('${song.file}', '${song.title}')">✏ Rename</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function play(url) {
+        document.getElementById('player').src = url;
+        document.getElementById('player').play();
+    }
+
+    async function rename(oldFilename, currentTitle) {
+        // Ask user for new name
+        const newName = prompt("Rename song to:", currentTitle);
+        
+        if (newName && newName !== currentTitle) {
+            const res = await fetch('/rename', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ old_filename: oldFilename, new_name: newName })
+            });
+            
+            const data = await res.json();
+            if (data.success) {
+                // Reload list to see changes
+                loadSongs(); 
+            } else {
+                alert("Error renaming: " + data.error);
+            }
+        }
+    }
+
+    document.getElementById('search').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        render(allSongs.filter(s => s.title.toLowerCase().includes(term)));
+    });
+
+    loadSongs();
+</script>
+
+</body>
+</html>
